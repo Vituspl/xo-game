@@ -3,20 +3,20 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 
 class Square extends React.Component {
-    /** добавим конструктор к классу, чтобы инициализировать состояние */
-    constructor(props) {
-        super(props);
-        this.state = {
-            value: null,
-        };
-    }
+    /** Удалим constructor из Square, потому что компонент больше не
+     * отвечает за хранение состояния игры. */
 
     render() {
         return (
-            /** В комп Square, Кнопке присвоим название, взятое из состояния значение value={i}
-             * После этого при клике на квадрат-ячейку увидим 'X' */
-            <button className="square" onClick={() => this.setState({value: 'X'})}>
-                {this.state.value}
+            /** Заменим this.state.value на this.props.value внутри метода render.
+             */
+            <button
+                className="square"
+                /** Заменим this.setState() на this.props.onClick()
+                * внутри метода render(). */
+                onClick={() => this.props.onClick()}
+            >
+                {this.props.value}
             </button>
         );
     }
@@ -29,13 +29,36 @@ class Board extends React.Component {
      * Эти 9 элементов соответствуют 9 квадратам: */
     constructor(props) {
         super(props);
-        this.state={
+        this.state = {
             squares: Array(9).fill(null)
-        }
+        };
     }
+    /** Компонент Board будет хранить информацию о заполненных клетках.  */
+
+    /** добавим метод handleClick в класс Board: */
+    handleClick(i) {
+        /** внутри handleClick мы вызвали .slice() для создания копии
+         * массива squares вместо изменения существующего массива.  */
+        const squares = this.state.squares.slice();
+        squares[i] = 'X';
+        this.setState({squares: squares});
+    }
+
     /** Передадим данные (i) из родительского комп Board в дочерний комп Square */
+    /** Изменим Board, чтобы передать каждому Square его текущее значение ('X', 'O' или null).
+     *  Мы уже определили массив squares в конструкторе Board.
+     *  Изменим метод renderSquare, чтобы читать данные из этого массива: */
     renderSquare(i) {
-        return <Square value={i}/>;
+        return (
+            /** каждый Square получает проп value, который будет, либо 'X' или 'O', либо null
+             * для пустых клеток.  */
+            <Square
+                value={this.state.squares[i]}
+                /** передадим из Board в Square функцию, и будем её вызывать из Square,
+                * когда по тому кликнули.  */
+                onClick={() => this.handleClick(i)}
+            />
+        );
     }
 
     render() {
