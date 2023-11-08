@@ -2,24 +2,15 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 
-class Square extends React.Component {
-    /** Удалим constructor из Square, потому что компонент больше не
-     * отвечает за хранение состояния игры. */
-
-    render() {
-        return (
-            /** Заменим this.state.value на this.props.value внутри метода render.
-             */
-            <button
-                className="square"
-                /** Заменим this.setState() на this.props.onClick()
-                * внутри метода render(). */
-                onClick={() => this.props.onClick()}
-            >
-                {this.props.value}
-            </button>
-        );
-    }
+/** сделаем Square функциональным компонентом.
+ * Мы заменили this.props на props оба раза, когда обращались к ним.
+ */
+function Square(props) {
+    return (
+        <button className="square" onClick={props.onClick}>
+            {props.value}
+        </button>
+    );
 }
 
 class Board extends React.Component {
@@ -27,10 +18,17 @@ class Board extends React.Component {
     /** Добавим конструктор к компоненту Board и установим начальное состояние
      * в виде массива из 9 элементов, заполненного значениями null.
      * Эти 9 элементов соответствуют 9 квадратам: */
+    /** По-умолчанию установим первый ход за «X». Мы можем сделать это,
+     * изменяя начальное состояние внутри конструктора Board: xIsNext:true .
+     * Каждый раз, когда игрок делает ход, xIsNext (булево значение) будет
+     * инвертироваться, чтобы обозначить, какой игрок ходит следующим, а
+     * состояние игры будет сохраняться.
+     */
     constructor(props) {
         super(props);
         this.state = {
-            squares: Array(9).fill(null)
+            squares: Array(9).fill(null),
+            xIsNext:true,
         };
     }
     /** Компонент Board будет хранить информацию о заполненных клетках.  */
@@ -39,9 +37,17 @@ class Board extends React.Component {
     handleClick(i) {
         /** внутри handleClick мы вызвали .slice() для создания копии
          * массива squares вместо изменения существующего массива.  */
+        /** Мы обновим метод handleClick класса Board, для инверсии значения xIsNext:
+         *  squares[i] = this.state.xIsNext ? 'X' : 'O';
+         *  xIsNext: !this.state.xIsNext,
+         *  После этих изменений «X» и «O» будут чередоваться.
+         */
         const squares = this.state.squares.slice();
-        squares[i] = 'X';
-        this.setState({squares: squares});
+        squares[i] = this.state.xIsNext ? 'X' : 'O';
+        this.setState({
+            squares: squares,
+            xIsNext: !this.state.xIsNext,
+        });
     }
 
     /** Передадим данные (i) из родительского комп Board в дочерний комп Square */
@@ -62,7 +68,10 @@ class Board extends React.Component {
     }
 
     render() {
-        const status = 'Next player: X';
+        /** Также изменим текст «status» в методе render класса Board так,
+         * чтобы он отображал какой игрок ходит следующим:
+         */
+        const status = 'Следующий ход: ' + (this.state.xIsNext ? 'X' : 'O');
 
         return (
             <div>
