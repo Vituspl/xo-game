@@ -14,82 +14,22 @@ function Square(props) {
 }
 
 class Board extends React.Component {
-    /** Компонент Board - родитель для компонента Square */
-    /** Добавим конструктор к компоненту Board и установим начальное состояние
-     * в виде массива из 9 элементов, заполненного значениями null.
-     * Эти 9 элементов соответствуют 9 квадратам: */
-    /** По-умолчанию установим первый ход за «X». Мы можем сделать это,
-     * изменяя начальное состояние внутри конструктора Board: xIsNext:true .
-     * Каждый раз, когда игрок делает ход, xIsNext (булево значение) будет
-     * инвертироваться, чтобы обозначить, какой игрок ходит следующим, а
-     * состояние игры будет сохраняться.
-     */
-    constructor(props) {
-        super(props);
-        this.state = {
-            squares: Array(9).fill(null),
-            xIsNext:true,
-        };
-    }
-    /** Компонент Board будет хранить информацию о заполненных клетках.  */
-
-    /** добавим метод handleClick в класс Board: */
-    handleClick(i) {
-        /** внутри handleClick мы вызвали .slice() для создания копии
-         * массива squares вместо изменения существующего массива.  */
-        /** Мы обновим метод handleClick класса Board, для инверсии значения xIsNext:
-         *  squares[i] = this.state.xIsNext ? 'X' : 'O';
-         *  xIsNext: !this.state.xIsNext,
-         *  После этих изменений «X» и «O» будут чередоваться.
-         */
-        /**  можем изменить метод handleClick класса Board для выхода из функции и
-         *  игнорировании клика, если кто-то уже победил или если клетка уже
-         *  заполнена, проверкой условия :
-         *  if (calculateWinner(squares) || squares[i]) { return; }
-         */
-        const squares = this.state.squares.slice();
-        if (calculateWinner(squares) || squares[i]) {
-            return;
-        }
-        squares[i] = this.state.xIsNext ? 'X' : 'O';
-        this.setState({
-            squares: squares,
-            xIsNext: !this.state.xIsNext,
-        });
-    }
-
-    /** Передадим данные (i) из родительского комп Board в дочерний комп Square */
-    /** Изменим Board, чтобы передать каждому Square его текущее значение ('X', 'O' или null).
-     *  Мы уже определили массив squares в конструкторе Board.
-     *  Изменим метод renderSquare, чтобы читать данные из этого массива: */
     renderSquare(i) {
         return (
-            /** каждый Square получает проп value, который будет, либо 'X' или 'O', либо null
-             * для пустых клеток.  */
             <Square
-                value={this.state.squares[i]}
-                /** передадим из Board в Square функцию, и будем её вызывать из Square,
-                * когда по тому кликнули.  */
-                onClick={() => this.handleClick(i)}
+                value={this.props.squares[i]}
+                onClick={() => this.props.onClick(i)}
             />
         );
     }
 
+    /** Поскольку компонент Game теперь рендерит статус игры, мы можем убрать
+     * соответствующий код из метода render внутри Board. После изменений метод render
+     * компонента Board выглядит так:
+     */
     render() {
-        /** вызывать calculateWinner(squares) внутри метода render класса Board,
-         * чтобы проверять, выиграл ли игрок.
-         */
-        const winner = calculateWinner(this.state.squares);
-        let status;
-        if (winner) {
-            status = 'Выиграл ' + winner;
-        } else {
-            status = 'Следующий ход: ' + (this.state.xIsNext ? 'X' : 'O');
-        }
-
         return (
             <div>
-                <div className="status">{status}</div>
                 <div className="board-row">
                     {this.renderSquare(0)}
                     {this.renderSquare(1)}
@@ -110,16 +50,116 @@ class Board extends React.Component {
     }
 }
 
+/** Добавим возможность «вернуться в прошлое» — к прошлым ходам игры.
+ *  Сохраним каждую версию массива squares в другом массиве и назовём его history.
+ *  Этот массив history будет хранить все состояния поля.
+ *  От первого до последнего хода.
+ *  Размещение history в состоянии компонента Game позволяет нам удалить squares из
+ *  состояния его дочернего компонента Board. Так же, как мы уже «поднимали
+ *  состояние» из компонента Square в Board, мы теперь поднимем его из Board в
+ *  компонент-родитель Game. Это даст компоненту Game полный контроль над данными
+ *  Board и позволит отдавать команду для Board на рендеринг прошлых ходов из history:
+ */
+/** Для начала зададим начальное состояние компонента Game внутри конструктора:
+ *
+ */
 class Game extends React.Component {
+    /** Для начала зададим начальное состояние компонента Game внутри конструктора:  */
+    constructor(props) {
+        super(props);
+        this.state = {
+            history: [{
+                squares: Array(9).fill(null),
+            }],
+            /** Прежде чем реализовывать jumpTo, мы добавим stepNumber в состояние
+             * компонента Game, для указания номера хода, который сейчас отображается.
+             * добавим stepNumber: 0 в начальное состояние Game внутри constructor:
+             */
+            stepNumber: 0,
+            xIsNext: true,
+        };
+    }
+
+    /** Теперь компоненту Board нужно только два метода — renderSquare и render.
+     *  Состояние игры и handleClick должны находиться внутри компонента Game.
+     */
+    handleClick(i) {
+        const history = this.state.history.slice(0, this.state.stepNumber + 1);
+        const current = history[history.length - 1];
+        const squares = current.squares.slice();
+        if (calculateWinner(squares) || squares[i]) {
+            return;
+        }
+        squares[i] = this.state.xIsNext ? 'X' : 'O';
+        this.setState({
+            /** В отличие от метода массива push(), с которым вы должно быть знакомы,
+             *  метод concat() не изменяет оригинальный массив, поэтому мы предпочтём
+             *  его.
+             */
+            history: history.concat([{
+                squares: squares,
+            }]),
+            /** Когда мы делаем очередной ход, нам нужно обновить stepNumber используя
+             * stepNumber: history.length как часть аргумента для this.setState.
+             */
+            stepNumber: history.length,
+            xIsNext: !this.state.xIsNext,
+        });
+    }
+
+    /** Далее, мы определим метод jumpTo в компоненте Game для обновления stepNumber.
+     * Мы также установим xIsNext в true, если номер хода, на который мы меняем
+     * stepNumber, чётный:
+     */
+    jumpTo(step) {
+        this.setState({
+            stepNumber: step,
+            xIsNext: (step % 2) === 0,
+        });
+    }
+
+    /** Обновим метод render компонента Game, чтобы использовать последнюю запись из
+     * истории для определения и отображения статуса игры:
+     */
     render() {
+        const history = this.state.history;
+        /** мы изменим метод render для Game, чтобы вместо рендера последнего хода он
+         *  рендерил ход, соответствующий stepNumber: */
+        const current = history[this.state.stepNumber];
+        const winner = calculateWinner(current.squares);
+
+        /** Применим map к history внутри метода render Game-компонента: */
+        const moves = history.map((step, move) => {
+            const desc = move ?
+                'Перейти к ходу #' + move :
+                'К началу игры';
+            return (
+                /** В методе render компонента Game мы можем добавить ключ следующим
+                 * образом <li key={move}>
+                 */
+                <li key={move}>
+                    <button onClick={() => this.jumpTo(move)}>{desc}</button>
+                </li>
+            );
+        });
+
+        let status;
+        if (winner) {
+            status = 'Выиграл ' + winner;
+        } else {
+            status = 'Следующий ход: ' + (this.state.xIsNext ? 'X' : 'O');
+        }
         return (
             <div className="game">
                 <div className="game-board">
-                    <Board/>
+                    <Board
+                        squares={current.squares}
+                        onClick={(i) => this.handleClick(i)}
+                    />
                 </div>
                 <div className="game-info">
-                    <div>{/* status */}</div>
-                    <ol>{/* TODO */}</ol>
+                    <div>{status}</div>
+                    <ol>{moves}</ol>
                 </div>
             </div>
         );
